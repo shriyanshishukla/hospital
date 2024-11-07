@@ -1,9 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[9]:
-
-
 import streamlit as st
 import os
 import pandas as pd
@@ -48,10 +42,39 @@ patient_details = {
     "los": st.number_input("Length of Stay (days)", value=1)
 }
 
-# Placeholder: Prediction function for patient readmission risk
+# Preprocessing function for patient details input
+def preprocess_input(patient_details):
+    # Convert input to DataFrame
+    df_input = pd.DataFrame([patient_details])
+
+    # One-hot encode categorical features to match expected model input format
+    categorical_features = ['admission_type', 'admission_location', 'discharge_location', 
+                            'insurance', 'marital_status', 'ethnicity', 'diagnosis']
+    df_input = pd.get_dummies(df_input, columns=categorical_features)
+
+    # Scale numerical features manually (example ranges or normalize by dividing by max values)
+    numerical_features = ['edregtime_numeric', 'edouttime_numeric', 'los']
+    for feature in numerical_features:
+        max_value = df_input[feature].max() if df_input[feature].max() > 0 else 1  # Prevent divide by zero
+        df_input[feature] = df_input[feature] / max_value
+
+    # Ensuring the DataFrame columns match the expected input size of the model
+    model_input_shape = model.input_shape[1]  # Get input shape from model
+    if df_input.shape[1] < model_input_shape:
+        # Add missing columns as zeros
+        missing_cols = model_input_shape - df_input.shape[1]
+        for i in range(missing_cols):
+            df_input[f"missing_col_{i}"] = 0
+
+    # If there are extra columns (e.g., unused ones), trim them to match the model input
+    df_input = df_input.iloc[:, :model_input_shape]
+    return df_input
+
+# Prediction function for patient readmission risk
 def predict_readmission(patient_details):
-    # Placeholder preprocessing and prediction code (replace with actual code)
-    return np.random.choice([0, 1])
+    processed_input = preprocess_input(patient_details)
+    prediction = model.predict(processed_input)
+    return int((prediction > 0.5).astype(int)[0][0])
 
 if st.button("Predict Readmission Risk"):
     readmission_risk = predict_readmission(patient_details)
@@ -86,10 +109,3 @@ st.markdown("""
 
 By integrating these features, hospitals can enhance patient outcomes and operational efficiency, staying prepared for varying levels of demand.
 """)
-
-
-# In[ ]:
-
-
-
-
